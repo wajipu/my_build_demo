@@ -41,19 +41,34 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
           python3 - <<'PY'
-          import base64, os
+          import base64, os, sys
           data = os.environ["IOS_P12_BASE64"]
           data = data.replace("\r", "").replace("\n", "")
-          open("signing.p12", "wb").write(base64.b64decode(data))
+          try:
+              raw = base64.b64decode(data, validate=True)
+          except Exception as e:
+              print("IOS_P12_BASE64 is not valid base64:", e, file=sys.stderr)
+              sys.exit(1)
+          if len(raw) < 1000 or raw[:1] != b"\x30":
+              print("IOS_P12_BASE64 decoded data does not look like a PKCS#12 file.", file=sys.stderr)
+              sys.exit(1)
+          open("signing.p12", "wb").write(raw)
           PY
+          file signing.p12
+          openssl pkcs12 -in signing.p12 -passin pass:"$IOS_P12_PASSWORD" -nokeys -info | head -n 20
           security import signing.p12 -k build.keychain -P "$IOS_P12_PASSWORD" -T /usr/bin/codesign
           security list-keychain -d user -s build.keychain
 
           python3 - <<'PY'
-          import base64, os
+          import base64, os, sys
           data = os.environ["IOS_MOBILEPROVISION_BASE64"]
           data = data.replace("\r", "").replace("\n", "")
-          open("profile.mobileprovision", "wb").write(base64.b64decode(data))
+          try:
+              raw = base64.b64decode(data, validate=True)
+          except Exception as e:
+              print("IOS_MOBILEPROVISION_BASE64 is not valid base64:", e, file=sys.stderr)
+              sys.exit(1)
+          open("profile.mobileprovision", "wb").write(raw)
           PY
           security cms -D -i profile.mobileprovision > profile.plist
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" profile.plist)
