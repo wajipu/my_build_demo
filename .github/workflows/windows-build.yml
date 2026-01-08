@@ -25,8 +25,14 @@ jobs:
       - name: Build release app
         run: flutter build windows --release
 
+      - name: Get Flutter version
+        shell: pwsh
+        run: |
+          $v = (flutter --version --machine | ConvertFrom-Json).frameworkVersion
+          "FLUTTER_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-release
+          name: windows-${{ env.FLUTTER_VERSION }}
           path: build/windows/**/runner/Release/**

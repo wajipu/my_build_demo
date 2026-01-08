@@ -1,11 +1,6 @@
 name: iOS Build
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -127,8 +122,13 @@ jobs:
             -exportOptionsPlist ExportOptions.plist \
             -exportPath build/ios/ipa
 
+      - name: Get Flutter version
+        run: |
+          FLUTTER_VERSION=$(flutter --version --machine | python3 -c "import json,sys;print(json.load(sys.stdin)['frameworkVersion'])")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
+          name: ios-ipa-${{ env.FLUTTER_VERSION }}
           path: build/ios/ipa/*.ipa
