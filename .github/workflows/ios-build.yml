@@ -57,7 +57,9 @@ jobs:
           file signing.p12
           openssl pkcs12 -in signing.p12 -passin pass:"$IOS_P12_PASSWORD" -nokeys -info | head -n 20
           security import signing.p12 -k build.keychain -P "$IOS_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security list-keychain -d user -s build.keychain
+          security find-identity -v -p codesigning build.keychain || true
 
           python3 - <<'PY'
           import base64, os, sys
@@ -71,6 +73,8 @@ jobs:
           open("profile.mobileprovision", "wb").write(raw)
           PY
           security cms -D -i profile.mobileprovision > profile.plist
+          /usr/libexec/PlistBuddy -c "Print :Name" profile.plist
+          /usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" profile.plist
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" profile.plist)
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
